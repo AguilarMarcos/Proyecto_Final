@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard – Sistema Escolar</title>
+  <link rel="stylesheet" href="/CSS/styles.css"/>
+</head>
+<body>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🎓</div>
+      <h2>Sistema Escolar</h2>
+      <p>Panel de Administración</p>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/dashboard" class="nav-item active"><span class="icon">📊</span> Dashboard</a>
+      <a href="/alumnos-page" class="nav-item"><span class="icon">👨‍🎓</span> Alumnos</a>
+      <a href="/calificaciones-page" class="nav-item"><span class="icon">📝</span> Calificaciones</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="user-avatar">A</div>
+        <div>
+          <div class="user-name" id="user-name">Cargando...</div>
+          <div class="user-role">Administrador</div>
+        </div>
+      </div>
+      <button class="btn btn-outline" style="width:100%; justify-content:center;" onclick="cerrarSesion()">
+        🚪 Cerrar Sesión
+      </button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">Dashboard</div>
+        <div class="topbar-sub">Resumen general del sistema</div>
+      </div>
+    </div>
+
+    <div class="page-content">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon blue">👨‍🎓</div>
+          <div class="stat-info">
+            <div class="number" id="total-alumnos">–</div>
+            <div class="label">Alumnos Registrados</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon gold">📝</div>
+          <div class="stat-info">
+            <div class="number" id="total-cals">–</div>
+            <div class="label">Calificaciones</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">⭐</div>
+          <div class="stat-info">
+            <div class="number" id="promedio-gen">–</div>
+            <div class="label">Promedio General</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-header">
+          <h2>📋 Alumnos Recientes</h2>
+          <a href="/alumnos-page" class="btn btn-primary btn-sm">Ver todos</a>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Matrícula</th>
+                <th>Grupo</th>
+                <th>Grado</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-alumnos">
+              <tr><td colspan="4" style="text-align:center; padding:30px; color:var(--gris-texto);">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  async function init() {
+    const sesion = await fetch('/api/sesion').then(r => r.json());
+    if (!sesion.autenticado) { window.location.href = '/'; return; }
+    document.getElementById('user-name').textContent = sesion.usuario.nombre;
+    document.getElementById('user-avatar').textContent = sesion.usuario.nombre[0].toUpperCase();
+
+    const alumnos = await fetch('/api/alumnos').then(r => r.json());
+    const cals    = await fetch('/api/calificaciones').then(r => r.json());
+
+    document.getElementById('total-alumnos').textContent = alumnos.length;
+    document.getElementById('total-cals').textContent = cals.length;
+
+    if (cals.length > 0) {
+      const prom = (cals.reduce((s,c) => s + parseFloat(c.calificacion), 0) / cals.length).toFixed(1);
+      document.getElementById('promedio-gen').textContent = prom;
+    } else {
+      document.getElementById('promedio-gen').textContent = 'N/A';
+    }
+
+    const tbody = document.getElementById('tabla-alumnos');
+    if (alumnos.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px; color:var(--gris-texto);">No hay alumnos registrados</td></tr>';
+    } else {
+      tbody.innerHTML = alumnos.slice(0, 6).map(a => `
+        <tr>
+          <td><strong>${a.nombre}</strong></td>
+          <td><span class="badge badge-blue">${a.matricula}</span></td>
+          <td>${a.grupo}</td>
+          <td>${a.grado}</td>
+        </tr>
+      `).join('');
+    }
+  }
+
+  async function cerrarSesion() {
+    await fetch('/api/logout');
+    window.location.href = '/';
+  }
+
+  init();
+</script>
+</body>
+</html>

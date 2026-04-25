@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Alumnos – Sistema Escolar</title>
+  <link rel="stylesheet" href="/css/styles.css"/>
+</head>
+<body>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🎓</div>
+      <h2>Sistema Escolar</h2>
+      <p>Panel de Administración</p>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/dashboard" class="nav-item"><span class="icon">📊</span> Dashboard</a>
+      <a href="/alumnos-page" class="nav-item active"><span class="icon">👨‍🎓</span> Alumnos</a>
+      <a href="/calificaciones-page" class="nav-item"><span class="icon">📝</span> Calificaciones</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="user-avatar">A</div>
+        <div>
+          <div class="user-name" id="user-name">Cargando...</div>
+          <div class="user-role">Administrador</div>
+        </div>
+      </div>
+      <button class="btn btn-outline" style="width:100%; justify-content:center;" onclick="cerrarSesion()">
+        🚪 Cerrar Sesión
+      </button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">Gestión de Alumnos</div>
+        <div class="topbar-sub">Altas, bajas y modificaciones</div>
+      </div>
+    </div>
+
+    <div class="page-content">
+      <div id="alert-main" class="alert"></div>
+
+      <div class="card">
+        <div class="section-header">
+          <h2>👨‍🎓 Lista de Alumnos</h2>
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <input class="search-bar" type="text" id="buscador" placeholder="🔍 Buscar alumno..." oninput="filtrarAlumnos()"/>
+            <button class="btn btn-primary" onclick="abrirModal()">+ Nuevo Alumno</button>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Nombre</th>
+                <th>Matrícula</th>
+                <th>Grupo</th>
+                <th>Grado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-alumnos">
+              <tr><td colspan="6" style="text-align:center; padding:40px; color:var(--gris-texto);">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-titulo">Nuevo Alumno</h3>
+      <button class="modal-close" onclick="cerrarModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="alert-modal" class="alert"></div>
+      <input type="hidden" id="alumno-id"/>
+      <div class="form-group">
+        <label>Nombre completo</label>
+        <input type="text" id="f-nombre" placeholder="Ej. Ana García López"/>
+      </div>
+      <div class="form-group">
+        <label>Matrícula</label>
+        <input type="text" id="f-matricula" placeholder="Ej. A001"/>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div class="form-group">
+          <label>Grupo</label>
+          <input type="text" id="f-grupo" placeholder="Ej. 3A"/>
+        </div>
+        <div class="form-group">
+          <label>Grado</label>
+          <select id="f-grado">
+            <option value="">Selecciona...</option>
+            <option value="Primero">Primero</option>
+            <option value="Segundo">Segundo</option>
+            <option value="Tercero">Tercero</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Contraseña del alumno <span style="color:var(--gris-texto); font-weight:400;">(para acceder al portal)</span></label>
+        <input type="password" id="f-password" placeholder="Mín. 6 caracteres con letras y números"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarAlumno()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let todosAlumnos = [];
+
+  async function init() {
+    const sesion = await fetch('/api/sesion').then(r => r.json());
+    if (!sesion.autenticado) { window.location.href = '/'; return; }
+    document.getElementById('user-name').textContent = sesion.usuario.nombre;
+    document.getElementById('user-avatar').textContent = sesion.usuario.nombre[0].toUpperCase();
+    cargarAlumnos();
+  }
+
+  async function cargarAlumnos() {
+    const res = await fetch('/api/alumnos');
+    todosAlumnos = await res.json();
+    renderTabla(todosAlumnos);
+  }
+
+  function renderTabla(alumnos) {
+    const tbody = document.getElementById('tabla-alumnos');
+    if (!alumnos.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px; color:var(--gris-texto);">No hay alumnos registrados</td></tr>';
+      return;
+    }
+    tbody.innerHTML = alumnos.map((a, i) => `
+      <tr>
+        <td><span class="badge badge-blue">${i+1}</span></td>
+        <td><strong>${a.nombre}</strong></td>
+        <td>${a.matricula}</td>
+        <td><span class="badge badge-gold">${a.grupo}</span></td>
+        <td>${a.grado}</td>
+        <td>
+          <button class="btn btn-gold btn-sm" onclick="editarAlumno(${a.id})">✏️ Editar</button>
+          <button class="btn btn-danger btn-sm" onclick="eliminarAlumno(${a.id}, '${a.nombre}')">🗑️ Eliminar</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function filtrarAlumnos() {
+    const q = document.getElementById('buscador').value.toLowerCase();
+    renderTabla(todosAlumnos.filter(a =>
+      a.nombre.toLowerCase().includes(q) ||
+      a.matricula.toLowerCase().includes(q) ||
+      a.grupo.toLowerCase().includes(q)
+    ));
+  }
+
+  function abrirModal(alumno = null) {
+    document.getElementById('modal-titulo').textContent = alumno ? 'Editar Alumno' : 'Nuevo Alumno';
+    document.getElementById('alumno-id').value   = alumno ? alumno.id : '';
+    document.getElementById('f-nombre').value    = alumno ? alumno.nombre : '';
+    document.getElementById('f-matricula').value = alumno ? alumno.matricula : '';
+    document.getElementById('f-grupo').value     = alumno ? alumno.grupo : '';
+    document.getElementById('f-grado').value     = alumno ? alumno.grado : '';
+    document.getElementById('f-password').value  = '';
+    document.getElementById('alert-modal').classList.remove('show');
+    document.getElementById('modal-overlay').classList.add('show');
+  }
+
+  function cerrarModal() {
+    document.getElementById('modal-overlay').classList.remove('show');
+  }
+
+  async function editarAlumno(id) {
+    const alumno = todosAlumnos.find(a => a.id === id);
+    abrirModal(alumno);
+  }
+
+  async function guardarAlumno() {
+    const id        = document.getElementById('alumno-id').value;
+    const nombre    = document.getElementById('f-nombre').value.trim();
+    const matricula = document.getElementById('f-matricula').value.trim();
+    const grupo     = document.getElementById('f-grupo').value.trim();
+    const grado     = document.getElementById('f-grado').value;
+    const password  = document.getElementById('f-password').value;
+
+    if (!nombre || !matricula || !grupo || !grado)
+      return showAlertModal('Nombre, matrícula, grupo y grado son requeridos', 'error');
+
+    if (password && !/^(?=.*[a-zA-Z])(?=.*\d).{6,}$/.test(password))
+      return showAlertModal('La contraseña debe tener mínimo 6 caracteres con letras y números', 'error');
+
+    const body = { nombre, matricula, grupo, grado };
+    if (password) body.password = password;
+
+    const url    = id ? `/api/alumnos/${id}` : '/api/alumnos';
+    const method = id ? 'PUT' : 'POST';
+    const res    = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const data   = await res.json();
+
+    if (res.ok) {
+      cerrarModal();
+      showAlertMain(data.mensaje, 'success');
+      cargarAlumnos();
+    } else {
+      showAlertModal(data.error, 'error');
+    }
+  }
+
+  async function eliminarAlumno(id, nombre) {
+    if (!confirm(`¿Eliminar al alumno "${nombre}"? Esta acción no se puede deshacer.`)) return;
+    const res  = await fetch(`/api/alumnos/${id}`, { method:'DELETE' });
+    const data = await res.json();
+    if (res.ok) { showAlertMain(data.mensaje, 'success'); cargarAlumnos(); }
+    else showAlertMain(data.error, 'error');
+  }
+
+  function showAlertMain(msg, tipo) {
+    const el = document.getElementById('alert-main');
+    el.textContent = msg; el.className = `alert alert-${tipo} show`;
+    setTimeout(() => el.classList.remove('show'), 3500);
+  }
+  function showAlertModal(msg, tipo) {
+    const el = document.getElementById('alert-modal');
+    el.textContent = msg; el.className = `alert alert-${tipo} show`;
+  }
+
+  async function cerrarSesion() { await fetch('/api/logout'); window.location.href = '/'; }
+
+  init();
+</script>
+</body>
+</html>

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Calificaciones – Sistema Escolar</title>
+  <link rel="stylesheet" href="/CSS/styles.css"/>
+</head>
+<body>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🎓</div>
+      <h2>Sistema Escolar</h2>
+      <p>Panel de Administración</p>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/dashboard" class="nav-item"><span class="icon">📊</span> Dashboard</a>
+      <a href="/alumnos-page" class="nav-item"><span class="icon">👨‍🎓</span> Alumnos</a>
+      <a href="/calificaciones-page" class="nav-item active"><span class="icon">📝</span> Calificaciones</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="user-avatar">A</div>
+        <div>
+          <div class="user-name" id="user-name">Cargando...</div>
+          <div class="user-role">Administrador</div>
+        </div>
+      </div>
+      <button class="btn btn-outline" style="width:100%; justify-content:center;" onclick="cerrarSesion()">
+        🚪 Cerrar Sesión
+      </button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">Calificaciones</div>
+        <div class="topbar-sub">Registro y consulta de calificaciones por alumno</div>
+      </div>
+    </div>
+
+    <div class="page-content">
+      <div id="alert-main" class="alert"></div>
+
+      <div class="card">
+        <div class="section-header">
+          <h2>📝 Registro de Calificaciones</h2>
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <input class="search-bar" type="text" id="buscador" placeholder="🔍 Buscar..." oninput="filtrarCals()"/>
+            <button class="btn btn-primary" onclick="abrirModal()">+ Nueva Calificación</button>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Alumno</th>
+                <th>Matrícula</th>
+                <th>Materia</th>
+                <th>Calificación</th>
+                <th>Periodo</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-cals">
+              <tr><td colspan="7" style="text-align:center; padding:40px; color:var(--gris-texto);">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-titulo">Nueva Calificación</h3>
+      <button class="modal-close" onclick="cerrarModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="alert-modal" class="alert"></div>
+      <input type="hidden" id="cal-id"/>
+      <div class="form-group">
+        <label>Alumno</label>
+        <select id="f-alumno"></select>
+      </div>
+      <div class="form-group">
+        <label>Materia</label>
+        <select id="f-materia">
+          <option value="">Selecciona materia...</option>
+          <option>Matemáticas</option>
+          <option>Español</option>
+          <option>Historia</option>
+          <option>Ciencias</option>
+          <option>Geografía</option>
+          <option>Inglés</option>
+          <option>Educación Física</option>
+          <option>Artes</option>
+        </select>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div class="form-group">
+          <label>Calificación (0–10)</label>
+          <input type="number" id="f-calificacion" min="0" max="10" step="0.1" placeholder="Ej. 9.5"/>
+        </div>
+        <div class="form-group">
+          <label>Periodo</label>
+          <select id="f-periodo">
+            <option value="">Selecciona...</option>
+            <option value="2024-1">2024 – Primer Semestre</option>
+            <option value="2024-2">2024 – Segundo Semestre</option>
+            <option value="2025-1">2025 – Primer Semestre</option>
+            <option value="2025-2">2025 – Segundo Semestre</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCal()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let todasCals = [];
+  let alumnos   = [];
+
+  async function init() {
+    const sesion = await fetch('/api/sesion').then(r => r.json());
+    if (!sesion.autenticado) { window.location.href = '/'; return; }
+    document.getElementById('user-name').textContent = sesion.usuario.nombre;
+    document.getElementById('user-avatar').textContent = sesion.usuario.nombre[0].toUpperCase();
+
+    alumnos = await fetch('/api/alumnos').then(r => r.json());
+    const sel = document.getElementById('f-alumno');
+    sel.innerHTML = '<option value="">Selecciona alumno...</option>' +
+      alumnos.map(a => `<option value="${a.id}">${a.nombre} (${a.matricula})</option>`).join('');
+
+    cargarCals();
+  }
+
+  async function cargarCals() {
+    const res = await fetch('/api/calificaciones');
+    todasCals = await res.json();
+    renderTabla(todasCals);
+  }
+
+  function calColor(c) {
+    const n = parseFloat(c);
+    if (n >= 9) return 'cal-alta';
+    if (n >= 7) return 'cal-media';
+    return 'cal-baja';
+  }
+
+  function renderTabla(cals) {
+    const tbody = document.getElementById('tabla-cals');
+    if (!cals.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px; color:var(--gris-texto);">No hay calificaciones registradas</td></tr>';
+      return;
+    }
+    tbody.innerHTML = cals.map((c, i) => `
+      <tr>
+        <td><span class="badge badge-blue">${i+1}</span></td>
+        <td><strong>${c.alumno}</strong></td>
+        <td>${c.matricula}</td>
+        <td>${c.materia}</td>
+        <td><span class="${calColor(c.calificacion)}">${parseFloat(c.calificacion).toFixed(1)}</span></td>
+        <td><span class="badge badge-gold">${c.periodo}</span></td>
+        <td>
+          <button class="btn btn-gold btn-sm" onclick="editarCal(${c.id})">✏️ Editar</button>
+          <button class="btn btn-danger btn-sm" onclick="eliminarCal(${c.id})">🗑️</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function filtrarCals() {
+    const q = document.getElementById('buscador').value.toLowerCase();
+    renderTabla(todasCals.filter(c =>
+      c.alumno.toLowerCase().includes(q) ||
+      c.materia.toLowerCase().includes(q) ||
+      c.periodo.toLowerCase().includes(q)
+    ));
+  }
+
+  function abrirModal(cal = null) {
+    document.getElementById('modal-titulo').textContent = cal ? 'Editar Calificación' : 'Nueva Calificación';
+    document.getElementById('cal-id').value         = cal ? cal.id : '';
+    document.getElementById('f-alumno').value        = cal ? cal.alumno_id : '';
+    document.getElementById('f-materia').value       = cal ? cal.materia : '';
+    document.getElementById('f-calificacion').value  = cal ? cal.calificacion : '';
+    document.getElementById('f-periodo').value       = cal ? cal.periodo : '';
+    document.getElementById('alert-modal').classList.remove('show');
+    document.getElementById('modal-overlay').classList.add('show');
+  }
+
+  function cerrarModal() {
+    document.getElementById('modal-overlay').classList.remove('show');
+  }
+
+  async function editarCal(id) {
+    const cal = todasCals.find(c => c.id === id);
+    const alumno = alumnos.find(a => a.nombre === cal.alumno);
+    abrirModal({ ...cal, alumno_id: alumno ? alumno.id : '' });
+  }
+
+  async function guardarCal() {
+    const id           = document.getElementById('cal-id').value;
+    const alumno_id    = document.getElementById('f-alumno').value;
+    const materia      = document.getElementById('f-materia').value;
+    const calificacion = document.getElementById('f-calificacion').value;
+    const periodo      = document.getElementById('f-periodo').value;
+
+    if (!alumno_id || !materia || calificacion === '' || !periodo)
+      return showAlertModal('Completa todos los campos', 'error');
+
+    const url    = id ? `/api/calificaciones/${id}` : '/api/calificaciones';
+    const method = id ? 'PUT' : 'POST';
+    const res    = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify({alumno_id, materia, calificacion, periodo}) });
+    const data   = await res.json();
+
+    if (res.ok) { cerrarModal(); showAlertMain(data.mensaje, 'success'); cargarCals(); }
+    else showAlertModal(data.error, 'error');
+  }
+
+  async function eliminarCal(id) {
+    if (!confirm('¿Eliminar esta calificación?')) return;
+    const res  = await fetch(`/api/calificaciones/${id}`, { method:'DELETE' });
+    const data = await res.json();
+    if (res.ok) { showAlertMain(data.mensaje, 'success'); cargarCals(); }
+    else showAlertMain(data.error, 'error');
+  }
+
+  function showAlertMain(msg, tipo) {
+    const el = document.getElementById('alert-main');
+    el.textContent = msg; el.className = `alert alert-${tipo} show`;
+    setTimeout(() => el.classList.remove('show'), 3500);
+  }
+  function showAlertModal(msg, tipo) {
+    const el = document.getElementById('alert-modal');
+    el.textContent = msg; el.className = `alert alert-${tipo} show`;
+  }
+
+  async function cerrarSesion() { await fetch('/api/logout'); window.location.href = '/'; }
+
+  init();
+</script>
+</body>
+</html>

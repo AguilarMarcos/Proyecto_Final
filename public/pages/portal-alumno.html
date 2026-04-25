@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mi Portal – Sistema Escolar</title>
+  <link rel="stylesheet" href="/css/styles.css"/>
+  <style>
+    .perfil-header {
+      background: linear-gradient(135deg, var(--azul-oscuro), var(--azul-claro));
+      border-radius: var(--radio);
+      padding: 32px;
+      color: var(--blanco);
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      margin-bottom: 28px;
+      box-shadow: var(--sombra-md);
+    }
+    .perfil-avatar {
+      width: 72px; height: 72px;
+      background: linear-gradient(135deg, var(--dorado), var(--dorado-claro));
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; font-weight: 800;
+      color: var(--azul-oscuro);
+      flex-shrink: 0;
+      box-shadow: 0 4px 16px rgba(201,168,76,0.4);
+    }
+    .perfil-info h2 { font-size: 22px; font-weight: 800; }
+    .perfil-info p  { font-size: 13px; color: rgba(255,255,255,0.70); margin-top: 4px; }
+    .perfil-badges  { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+    .perfil-badge   {
+      background: rgba(255,255,255,0.15);
+      padding: 4px 12px; border-radius: 99px;
+      font-size: 12px; font-weight: 600;
+    }
+    .dos-columnas { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    @media(max-width:700px){ .dos-columnas { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🎓</div>
+      <h2>Portal Alumno</h2>
+      <p>Mi espacio escolar</p>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/portal-alumno" class="nav-item active"><span class="icon">👤</span> Mi Perfil</a>
+      <a href="#seccion-calificaciones" class="nav-item" onclick="scrollCals()"><span class="icon">📝</span> Mis Calificaciones</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="user-avatar">A</div>
+        <div>
+          <div class="user-name" id="user-name">Cargando...</div>
+          <div class="user-role">Alumno</div>
+        </div>
+      </div>
+      <button class="btn btn-outline" style="width:100%; justify-content:center;" onclick="cerrarSesion()">
+        🚪 Cerrar Sesión
+      </button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">Mi Portal</div>
+        <div class="topbar-sub">Consulta y edita tu información escolar</div>
+      </div>
+    </div>
+
+    <div class="page-content">
+      <div id="alert-main" class="alert"></div>
+
+      <div class="perfil-header">
+        <div class="perfil-avatar" id="avatar-grande">A</div>
+        <div class="perfil-info">
+          <h2 id="ph-nombre">Cargando...</h2>
+          <p id="ph-email">–</p>
+          <div class="perfil-badges">
+            <span class="perfil-badge" id="ph-matricula">–</span>
+            <span class="perfil-badge" id="ph-grupo">–</span>
+            <span class="perfil-badge" id="ph-grado">–</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="dos-columnas">
+        <div class="card">
+          <h2 style="font-size:17px; font-weight:700; margin-bottom:20px; color:var(--azul-oscuro);">✏️ Editar Mis Datos</h2>
+          <div id="alert-form" class="alert"></div>
+          <div class="form-group">
+            <label>Nombre</label>
+            <input type="text" id="f-nombre" placeholder="Tu nombre"/>
+          </div>
+          <div class="form-group">
+            <label>Apellido</label>
+            <input type="text" id="f-apellido" placeholder="Tu apellido"/>
+          </div>
+          <div class="form-group">
+            <label>Nueva contraseña <span style="color:var(--gris-texto); font-weight:400;">(dejar vacío para no cambiar)</span></label>
+            <input type="password" id="f-password" placeholder="Mínimo 6 caracteres alfanuméricos"/>
+          </div>
+          <button class="btn btn-primary" onclick="guardarDatos()">💾 Guardar Cambios</button>
+        </div>
+        <div class="card">
+          <h2 style="font-size:17px; font-weight:700; margin-bottom:20px; color:var(--azul-oscuro);">⭐ Mi Promedio</h2>
+          <div id="resumen-cals" style="display:flex; flex-direction:column; gap:10px;">
+            <p style="color:var(--gris-texto); font-size:14px;">Cargando...</p>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:24px;" id="seccion-calificaciones">
+        <h2 style="font-size:17px; font-weight:700; margin-bottom:20px; color:var(--azul-oscuro);">📝 Mis Calificaciones</h2>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Materia</th>
+                <th>Calificación</th>
+                <th>Periodo</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-cals">
+              <tr><td colspan="3" style="text-align:center; padding:30px; color:var(--gris-texto);">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let alumnoData = null;
+
+  function calColor(c) {
+    const n = parseFloat(c);
+    if (n >= 9) return 'cal-alta';
+    if (n >= 7) return 'cal-media';
+    return 'cal-baja';
+  }
+
+  function scrollCals() {
+    document.getElementById('seccion-calificaciones').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  async function init() {
+    const sesion = await fetch('/api/sesion').then(r => r.json());
+    if (!sesion.autenticado || sesion.usuario.rol !== 'alumno') {
+      window.location.href = '/'; return;
+    }
+
+    alumnoData = sesion.usuario;
+    document.getElementById('user-name').textContent   = alumnoData.nombre;
+    document.getElementById('user-avatar').textContent = alumnoData.nombre[0].toUpperCase();
+    document.getElementById('avatar-grande').textContent = alumnoData.nombre[0].toUpperCase();
+
+    const res    = await fetch(`/api/alumno/perfil`);
+    const alumno = await res.json();
+
+    const nombreCompleto = alumno.nombre;
+    const partes = nombreCompleto.split(' ');
+    document.getElementById('ph-nombre').textContent    = nombreCompleto;
+    document.getElementById('ph-email').textContent     = alumnoData.email || alumno.matricula;
+    document.getElementById('ph-matricula').textContent = '📋 ' + alumno.matricula;
+    document.getElementById('ph-grupo').textContent     = '👥 Grupo ' + alumno.grupo;
+    document.getElementById('ph-grado').textContent     = '🏫 ' + alumno.grado;
+
+    document.getElementById('f-nombre').value   = partes[0] || '';
+    document.getElementById('f-apellido').value = partes.slice(1).join(' ') || '';
+
+    const cals = await fetch('/api/alumno/calificaciones').then(r => r.json());
+    const tbody = document.getElementById('tabla-cals');
+
+    if (!cals.length) {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:30px; color:var(--gris-texto);">Sin calificaciones registradas</td></tr>';
+      document.getElementById('resumen-cals').innerHTML = '<p style="color:var(--gris-texto); font-size:14px;">Sin calificaciones aún</p>';
+      return;
+    }
+
+    tbody.innerHTML = cals.map(c => `
+      <tr>
+        <td><strong>${c.materia}</strong></td>
+        <td><span class="${calColor(c.calificacion)}">${parseFloat(c.calificacion).toFixed(1)}</span></td>
+        <td><span class="badge badge-gold">${c.periodo}</span></td>
+      </tr>
+    `).join('');
+
+    const prom = (cals.reduce((s, c) => s + parseFloat(c.calificacion), 0) / cals.length).toFixed(1);
+    const color = parseFloat(prom) >= 9 ? 'cal-alta' : parseFloat(prom) >= 7 ? 'cal-media' : 'cal-baja';
+    document.getElementById('resumen-cals').innerHTML = `
+      <div style="text-align:center; padding:16px 0;">
+        <div class="${color}" style="font-size:52px; font-weight:900;">${prom}</div>
+        <div style="font-size:13px; color:var(--gris-texto); margin-top:6px;">Promedio General</div>
+      </div>
+      <div style="font-size:13px; color:var(--gris-texto); text-align:center;">${cals.length} materia(s) registrada(s)</div>
+    `;
+  }
+
+  async function guardarDatos() {
+    const nombre   = document.getElementById('f-nombre').value.trim();
+    const apellido = document.getElementById('f-apellido').value.trim();
+    const password = document.getElementById('f-password').value;
+
+    if (!nombre || !apellido) return showAlertForm('Nombre y apellido son requeridos', 'error');
+
+    if (password) {
+      const alfanum = /^(?=.*[a-zA-Z])(?=.*\d).{6,}$/;
+      if (!alfanum.test(password))
+        return showAlertForm('La contraseña debe tener al menos 6 caracteres con letras y números', 'error');
+    }
+
+    const res  = await fetch('/api/alumno/perfil', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre: `${nombre} ${apellido}`, password: password || null })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showAlertMain(data.mensaje, 'success');
+      document.getElementById('f-password').value = '';
+      init();
+    } else {
+      showAlertForm(data.error, 'error');
+    }
+  }
+
+  function showAlertMain(msg, tipo) {
+    const el = document.getElementById('alert-main');
+    el.textContent = msg; el.className = `alert alert-${tipo} show`;
+    setTimeout(() => el.classList.remove('show'), 3500);
+  }
+  function showAlertForm(msg, tipo) {
+    const el = document.getElementById('alert-form');
+    el.textContent = msg; el.className = `alert alert-${tipo} show`;
+    setTimeout(() => el.classList.remove('show'), 4000);
+  }
+
+  async function cerrarSesion() { await fetch('/api/logout'); window.location.href = '/'; }
+
+  init();
+</script>
+</body>
+</html>
